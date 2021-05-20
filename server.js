@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors")
 const cookieParser = require("cookie-parser")
 const jwt = require("jsonwebtoken")
+const { COOKIE_BASE_CONFIG, JWT_TOKEN, JWT_REFRESH, generateTokenPair } = require("./token-factory")
 
 // ALLOW that cookies are sent to us
 app.use( cors({ origin: 'http://localhost:3000', credentials: true }) )
@@ -13,34 +14,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-// const JWT_TOKEN = { key: 'token', secret: "holy_secret", expiry: 1000*60*2 }
-// const JWT_REFRESH = { key: 'refresh_token', secret: "holy_refresh_secret", expiry: 1000*60*4 }
-const JWT_TOKEN = { key: 'token', secret: "holy_secret", expiry: '1m' }
-const JWT_REFRESH = { key: 'refresh_token', secret: "holy_refresh_secret", expiry: '2m' }
-const COOKIE_BASE_CONFIG = { httpOnly: true, maxAge: 1000*60*10 }
-
-app.get('/logout', (req, res, next) => {
-  res.clearCookie(JWT_TOKEN.key)
-  res.clearCookie(JWT_REFRESH.key)
-  res.json({ message: "Logged out successfully" })
-})
-
-const generateTokenPair = (user, res) => {
-  // create a "visitor card" (= so we will recognise you the next time!)
-  const token = jwt.sign(
-    { _id: user._id }, JWT_TOKEN.secret, { expiresIn: JWT_TOKEN.expiry } 
-  )
-  const refreshToken = jwt.sign(
-    { _id: user._id }, JWT_REFRESH.secret, { expiresIn: JWT_REFRESH.expiry } 
-  )
-
-  // pin the visitor card to your dress (=attach cookie)
-  res.cookie(JWT_TOKEN.key, token, COOKIE_BASE_CONFIG)
-  res.cookie(JWT_REFRESH.key, refreshToken, COOKIE_BASE_CONFIG)
-
-  return { token, refreshToken }
-}
-
+// hardcoded login to quickly get a pair of access + refresh token
 app.get('/login', (req, res, next) => {
 
   let userFound = {
@@ -59,6 +33,13 @@ app.get('/login', (req, res, next) => {
     refresh_token: refreshToken
   })
 
+})
+
+// clear access + refresh token on logout
+app.get('/logout', (req, res, next) => {
+  res.clearCookie(JWT_TOKEN.key)
+  res.clearCookie(JWT_REFRESH.key)
+  res.json({ message: "Logged out successfully" })
 })
 
 // SECURITY GUARD
@@ -80,7 +61,7 @@ const auth = (req, res, next) => {
     next()
   }
   catch(err) {
-    // console.log("Expired?", err.expiredAt)
+    console.log("Expired?", err.expiredAt)
 
     // auth token malformed / not expired? -> reject call
     if(!err.expiredAt) {
@@ -91,7 +72,7 @@ const auth = (req, res, next) => {
     try {
       console.log("TOKEN expired. Checking refresh token...")
       const refreshContent = jwt.verify(req.cookies[JWT_REFRESH.key], JWT_REFRESH.secret)
-      console.log("Refresh token: ", refreshContent)
+      console.log("Refresh token decoded: ", refreshContent)
       generateTokenPair(refreshContent, res)
       console.log("Generated new pair of tokens")
       next()

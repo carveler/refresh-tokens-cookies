@@ -10,37 +10,6 @@ app.use( cors({ origin: 'http://localhost:3000', credentials: true }) )
 app.use( cookieParser() )
 app.use( express.json() )
 
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
-
-// hardcoded login to quickly get a pair of access + refresh token
-app.get('/login', (req, res, next) => {
-
-  let userFound = {
-    _id: '12345',
-    username: 'losrobbos',
-    email: 'losrobbos@backend.com'
-  }
-
-  console.log("Login successful")
-
-  const { token, refreshToken } = generateTokenPair(userFound, res)
-
-  res.json({
-    user: userFound,
-    token: token,
-    refresh_token: refreshToken
-  })
-
-})
-
-// clear access + refresh token on logout
-app.get('/logout', (req, res, next) => {
-  res.clearCookie(JWT_TOKEN.key)
-  res.clearCookie(JWT_REFRESH.key)
-  res.json({ message: "Logged out successfully" })
-})
 
 // SECURITY GUARD
   // that guy here will check if we provide a valid visitor card before granting acccess...
@@ -87,6 +56,41 @@ const auth = (req, res, next) => {
   }
 
 }
+  
+
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+
+// hardcoded login to quickly get a pair of access + refresh token
+app.get('/login', (req, res, next) => {
+
+  let userFound = {
+    _id: '12345',
+    username: 'losrobbos',
+    email: 'losrobbos@backend.com'
+  }
+
+  console.log("Login successful")
+
+  const { token, refreshToken } = generateTokenPair(userFound, res)
+
+  res.json({
+    user: userFound,
+    token: token,
+    refresh_token: refreshToken
+  })
+
+})
+
+// clear access + refresh token on logout
+app.get('/logout', (req, res, next) => {
+  res.clearCookie(JWT_TOKEN.key, COOKIE_BASE_CONFIG)
+  res.clearCookie(JWT_REFRESH.key, COOKIE_BASE_CONFIG)
+  res.json({ message: "Logged out successfully" })
+})
+
 
 // protected resource
 app.get('/protected', auth, (req, res, next) => {
